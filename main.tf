@@ -17,4 +17,5 @@ module "alb" {
 
 module "route_53" {
   source = "./route_53"
+  enable = var.enble_route_53
 }
