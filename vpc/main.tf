@@ -1,7 +1,7 @@
 resource "aws_vpc" "main" {
   cidr_block = var.vpc_cidr_block
 
-  tags {
+  tags = {
     Name = "main"
   }
 }
@@ -12,7 +12,7 @@ resource "aws_subnet" "public" {
   cidr_block = element(var.public_subnet_cidr_block, count.index)
   # availability_zone = var.public_subnet_az
 
-  tags {
+  tags = {
     Name = "Public subnet ${count.index + 1}"
   }
 }
@@ -23,7 +23,7 @@ resource "aws_subnet" "private" {
   cidr_block        = element(var.private_subnet_cidr_block, count.index)
   availability_zone = element(var.az, count.index)
 
-  tags {
+  tags = {
     Name = "Private subnet ${count.index + 1}"
   }
 }
