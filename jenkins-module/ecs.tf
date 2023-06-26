@@ -35,52 +35,46 @@ resource "aws_ecs_cluster" "ecs-cluster" {
 }
 
 resource "aws_ecs_task_definition" "aws-ecs-task" {
-  family = "${var.app_name}-task"
+  family                   = "${var.app_name}-task"
+  execution_role_arn       = aws_iam_role.ecsTaskExecutionRole.arn
+  task_role_arn            = aws_iam_role.ecsTaskExecutionRole.arn
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
 
-  # container_definitions = <<DEFINITION
-  # [
-  #  {
-  #    "name": "${var.app_name}-container",
-  #    "image": "${aws_ecr_repository.aws-ecr.repository_url}:latest",
-  #    "entryPoint": [],
-  #    "essential": true,
-  #    },
-  #    "portMappings": [
-  #      {
-  #        "containerPort": 8080,
-  #        "hostPort": 8080
-  #      }
-  #    ],
-  #    "cpu": 256,
-  #    "memory": 512,
-  #    "networkMode": "main"
-  #  }
-  # ]
-  # DEFINITION
-
-  requiresrequires_compatibilities = ["FARGATE"]
-  network_mode                     = "main"
-  memory                           = "512"
-  cpu                              = "256"
-  execution_role_arn               = aws_iam_role.ecsTaskExecutionRole
-  task_role_arn                    = aws_iam_role.ecsTaskExecutionRole
+  container_definitions = <<DEFINITION
+  [
+   {
+     "name": "${var.app_name}-container",
+     "image": "jenkins/jenkins:lts",
+     "entryPoint": [],
+     "essential": true,
+     "portMappings": [
+       {
+         "containerPort": ${var.container_port},
+         "hostPort": ${var.container_port},
+         "protocol" : "tcp"
+       }
+     ],
+     "cpu": ${var.task_cpu},
+     "memory": ${var.task_memory},
+     "networkMode": "awsvpc"
+   }
+  ]
+  DEFINITION
 
   tags = {
     Name = "${var.app_name}-ecs-td"
   }
 }
 
-data "aws_ecs_task_definition" "main" {
-  task_definition = aws_ecs_task_definition.aws-ecs-task.family
-}
-
 resource "aws_ecs_service" "aws-ecs-service" {
   name                 = "${var.app_name}-ecs-service"
   cluster              = aws_ecs_cluster.ecs-cluster.id
-  task_definition      = "${aws_ecs_task_definition.aws-ecs-task.family}:${max(aws_ecs_task_definition.aws-ecs-task.revision, data.aws_ecs_task_definition.main.revision)}"
+  task_definition      = aws_ecs_task_definition.aws-ecs-task.family
   launch_type          = "FARGATE"
-  scheduling_strategy  = "REPLICA"
-  desired_count        = 1
+  desired_count        = var.count
   force_new_deployment = true
 
   network_configuration {
@@ -95,7 +89,7 @@ resource "aws_ecs_service" "aws-ecs-service" {
   load_balancer {
     target_group_arn = aws_lb_target_group.target_group_arn
     container_name   = "${var.app_name}-container"
-    container_port   = 8080
+    container_port   = var.container_port
   }
 
   depends_on = [aws_lb_listener.listener]
